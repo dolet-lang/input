@@ -1,0 +1,62 @@
+# ============================
+#  Typed-Char Ring Buffer
+# ============================
+# Fed by the window module's WndProc on WM_CHAR.
+# Drained each frame by the UI layer (text input widget).
+#
+# The buffer stores printable characters verbatim. Backspace (8) is
+# tracked separately in g_had_backspace so TextInput can consume it
+# without scanning the buffer.
+
+BUF_CAPACITY: i32 = 256
+
+g_typed_chars_buf: i64 = 0   # lazy-allocated BUF_CAPACITY bytes
+g_typed_chars_len: i32 = 0   # bytes currently in buffer
+g_had_backspace: i32 = 0     # was VK_BACK (8) typed since last drain
+
+fun input_chars_init():
+    if g_typed_chars_buf == 0:
+        g_typed_chars_buf = Memory.malloc_zeroed(BUF_CAPACITY + 1)
+
+# Called from WndProc on WM_CHAR with the codepoint. Handles ASCII
+# printable (32..126) plus backspace (8). Silently drops other codes
+# (IME / high-Unicode) until a proper UTF-8 pipeline exists.
+fun input_push_typed_char(c: i32):
+    input_chars_init()
+    # backspace
+    if c == 8:
+        g_had_backspace = 1
+        return
+    # printable ASCII only for now
+    if c < 32 or c > 126:
+        return
+    if g_typed_chars_len >= BUF_CAPACITY:
+        return
+    Memory.write_i8(g_typed_chars_buf + (g_typed_chars_len as i64), c)
+    g_typed_chars_len = g_typed_chars_len + 1
+
+# Drain the buffer: returns the accumulated chars as a str and resets
+# the buffer length to zero. Backspace state is also cleared.
+fun input_typed_chars() -> str:
+    input_chars_init()
+    if g_typed_chars_len <= 0:
+        g_had_backspace = 0
+        return ""
+    # Null-terminate for str safety then snapshot
+    Memory.write_i8(g_typed_chars_buf + (g_typed_chars_len as i64), 0)
+    result: str = g_typed_chars_buf as str
+    g_typed_chars_len = 0
+    g_had_backspace = 0
+    return result
+
+# Was backspace typed since last drain? Consumers (TextInput) usually
+# call this BEFORE input_typed_chars so they can apply deletions first.
+fun input_has_backspace() -> i32:
+    return g_had_backspace
+
+# Explicit reset — call it if you want to discard input (e.g. when a
+# text field loses focus).
+fun input_reset_typed_chars():
+    input_chars_init()
+    g_typed_chars_len = 0
+    g_had_backspace = 0

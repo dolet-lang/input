@@ -174,7 +174,11 @@ fun update_mouse():
         g_mouse_buttons = g_mouse_buttons | (1 << MOUSE_X1)
     if mouse_pressed(MOUSE_X2) == 1:
         g_mouse_buttons = g_mouse_buttons | (1 << MOUSE_X2)
-    
+
+    # Refresh drag starts / dragging bitmask based on transitions detected
+    # by mouse_just_pressed / mouse_just_released (which read g_mouse_prev_buttons).
+    update_drag_state()
+
     g_mouse_init = 1
 
 # Initialize mouse state
@@ -214,3 +218,102 @@ fun add_scroll(delta: f32):
 # Requirements: 5.4
 fun reset_scroll():
     g_mouse_scroll = 0.0
+
+# ----- Drag State Machine -----
+# For each button we track (start_x, start_y) when a press begins, and a
+# bit in g_dragging for whether we are currently dragging with it.
+# Scrollbars, sliders and drag/drop all build on top of these.
+
+g_dragging: i32 = 0   # bitmask: bit b set means dragging with button b
+
+g_drag_lx: i32 = 0
+g_drag_ly: i32 = 0
+g_drag_rx: i32 = 0
+g_drag_ry: i32 = 0
+g_drag_mx: i32 = 0
+g_drag_my: i32 = 0
+g_drag_x1x: i32 = 0
+g_drag_x1y: i32 = 0
+g_drag_x2x: i32 = 0
+g_drag_x2y: i32 = 0
+
+fun mouse_is_dragging(button: i32) -> i32:
+    if button < 0 or button > 4:
+        return 0
+    return (g_dragging >> button) & 1
+
+fun mouse_drag_start_x(button: i32) -> i32:
+    if button == MOUSE_LEFT:
+        return g_drag_lx
+    if button == MOUSE_RIGHT:
+        return g_drag_rx
+    if button == MOUSE_MIDDLE:
+        return g_drag_mx
+    if button == MOUSE_X1:
+        return g_drag_x1x
+    if button == MOUSE_X2:
+        return g_drag_x2x
+    return 0
+
+fun mouse_drag_start_y(button: i32) -> i32:
+    if button == MOUSE_LEFT:
+        return g_drag_ly
+    if button == MOUSE_RIGHT:
+        return g_drag_ry
+    if button == MOUSE_MIDDLE:
+        return g_drag_my
+    if button == MOUSE_X1:
+        return g_drag_x1y
+    if button == MOUSE_X2:
+        return g_drag_x2y
+    return 0
+
+fun mouse_drag_delta_x(button: i32) -> i32:
+    if mouse_is_dragging(button) == 0:
+        return 0
+    return g_mouse_x - mouse_drag_start_x(button)
+
+fun mouse_drag_delta_y(button: i32) -> i32:
+    if mouse_is_dragging(button) == 0:
+        return 0
+    return g_mouse_y - mouse_drag_start_y(button)
+
+# Update drag state — called by update_mouse after button state has been
+# refreshed but before returning. Transitions: press starts a drag,
+# release ends one.
+fun update_drag_state():
+    # LEFT
+    if mouse_just_pressed(MOUSE_LEFT) == 1:
+        g_drag_lx = g_mouse_x
+        g_drag_ly = g_mouse_y
+        g_dragging = g_dragging | (1 << MOUSE_LEFT)
+    if mouse_just_released(MOUSE_LEFT) == 1:
+        g_dragging = g_dragging & (0 - 1 - (1 << MOUSE_LEFT))
+    # RIGHT
+    if mouse_just_pressed(MOUSE_RIGHT) == 1:
+        g_drag_rx = g_mouse_x
+        g_drag_ry = g_mouse_y
+        g_dragging = g_dragging | (1 << MOUSE_RIGHT)
+    if mouse_just_released(MOUSE_RIGHT) == 1:
+        g_dragging = g_dragging & (0 - 1 - (1 << MOUSE_RIGHT))
+    # MIDDLE
+    if mouse_just_pressed(MOUSE_MIDDLE) == 1:
+        g_drag_mx = g_mouse_x
+        g_drag_my = g_mouse_y
+        g_dragging = g_dragging | (1 << MOUSE_MIDDLE)
+    if mouse_just_released(MOUSE_MIDDLE) == 1:
+        g_dragging = g_dragging & (0 - 1 - (1 << MOUSE_MIDDLE))
+    # X1
+    if mouse_just_pressed(MOUSE_X1) == 1:
+        g_drag_x1x = g_mouse_x
+        g_drag_x1y = g_mouse_y
+        g_dragging = g_dragging | (1 << MOUSE_X1)
+    if mouse_just_released(MOUSE_X1) == 1:
+        g_dragging = g_dragging & (0 - 1 - (1 << MOUSE_X1))
+    # X2
+    if mouse_just_pressed(MOUSE_X2) == 1:
+        g_drag_x2x = g_mouse_x
+        g_drag_x2y = g_mouse_y
+        g_dragging = g_dragging | (1 << MOUSE_X2)
+    if mouse_just_released(MOUSE_X2) == 1:
+        g_dragging = g_dragging & (0 - 1 - (1 << MOUSE_X2))

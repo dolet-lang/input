@@ -9,6 +9,7 @@ module input
 load input/platform
 load input/keys
 load input/mouse
+load input/chars
 load input/gamepad
 load input/input
 
@@ -39,6 +40,24 @@ export mouse_pressed
 export mouse_just_pressed
 export mouse_just_released
 export mouse_scroll
+export add_scroll
+export reset_scroll
+export mouse_is_dragging
+export mouse_drag_start_x
+export mouse_drag_start_y
+export mouse_drag_delta_x
+export mouse_drag_delta_y
+export MOUSE_LEFT
+export MOUSE_RIGHT
+export MOUSE_MIDDLE
+export MOUSE_X1
+export MOUSE_X2
+
+# Exported functions — Typed chars (for TextInput widgets)
+export input_push_typed_char
+export input_typed_chars
+export input_has_backspace
+export input_reset_typed_chars
 
 # Exported functions — Gamepad
 export gamepad_connected

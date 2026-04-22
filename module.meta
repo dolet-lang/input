@@ -3,8 +3,8 @@
 
 [info]
 name = input
-version = 1.0.0
-description = Keyboard and mouse input handling
+version = 1.1.0
+description = Keyboard, mouse (with drag state), gamepad, and typed-character input for Dolet
 
 [libs]
 # No external libraries needed
